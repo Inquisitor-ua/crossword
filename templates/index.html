@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Генератор кроссвордов</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+</head>
+<body>
+  <script>
+    window.__CROSSWORD_PAGE__ = {
+      isSharedView: {{ is_shared_view|yesno:"true,false" }},
+      crosswordId: "{{ crossword_id|default:'' }}"
+    };
+  </script>
+  {% verbatim %}
+  <div id="app">
+    <header class="header">
+      <div class="container">
+        <h1>{{ isSharedView ? 'Кроссворд' : 'Генератор кроссвордов' }}</h1>
+        <p class="subtitle">
+          {{ isSharedView
+            ? 'Заполните поля по подсказкам'
+            : 'Добавьте слова и описания — кроссворд построится автоматически'
+          }}
+        </p>
+        <a v-if="isSharedView" href="/" class="home-link">Создать свой кроссворд</a>
+      </div>
+    </header>
+
+    <main class="container main">
+      <section v-if="!isSharedView" class="panel form-panel">
+        <h2>Слова и описания</h2>
+
+        <div class="word-list">
+          <div
+            v-for="(entry, index) in words"
+            :key="entry.id"
+            class="word-row"
+          >
+            <span class="row-number">{{ index + 1 }}</span>
+            <input
+              v-model="entry.word"
+              type="text"
+              placeholder="Слово"
+              class="input input-word"
+              @keyup.enter="generate"
+            >
+            <input
+              v-model="entry.clue"
+              type="text"
+              placeholder="Описание (вопрос)"
+              class="input input-clue"
+              @keyup.enter="generate"
+            >
+            <button
+              type="button"
+              class="btn btn-icon"
+              title="Удалить"
+              :disabled="words.length <= 1"
+              @click="removeWord(index)"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn btn-secondary" @click="addWord">
+            + Добавить слово
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            :disabled="loading"
+            @click="generate"
+          >
+            {{ loading ? 'Генерация...' : 'Сгенерировать кроссворд' }}
+          </button>
+          <button type="button" class="btn btn-ghost" @click="loadSample">
+            Пример
+          </button>
+        </div>
+
+        <p v-if="error" class="message message-error">{{ error }}</p>
+        <p v-if="success" class="message message-success">{{ success }}</p>
+      </section>
+
+      <section v-if="crossword" class="panel result-panel">
+        <div class="result-header">
+          <h2>Кроссворд</h2>
+          <span class="badge">
+            Размещено {{ crossword.placed_count }} из {{ crossword.total_words }} слов
+          </span>
+        </div>
+
+        <div v-if="shareUrl && !isSharedView" class="share-block">
+          <label class="share-label" for="share-url">Ссылка на кроссворд</label>
+          <div class="share-row">
+            <input
+              id="share-url"
+              :value="shareUrl"
+              type="text"
+              class="input share-input"
+              readonly
+              @focus="$event.target.select()"
+            >
+            <button type="button" class="btn btn-secondary" @click="copyShareLink">
+              {{ copied ? 'Скопировано' : 'Копировать' }}
+            </button>
+          </div>
+          <p class="share-hint">Отправьте эту ссылку — кроссворд откроется у другого человека</p>
+        </div>
+
+        <div v-if="puzzleComplete" class="message message-complete">
+          Поздравляем! Вы успешно разгадали кроссворд!
+        </div>
+
+        <div class="crossword-layout">
+          <div class="grid-wrapper">
+            <table class="crossword-grid" :style="gridStyle">
+              <tbody>
+                <tr v-for="(row, rowIndex) in crossword.grid" :key="rowIndex">
+                  <td
+                    v-for="(cell, colIndex) in row"
+                    :key="colIndex"
+                    :class="cellClass(cell, rowIndex, colIndex)"
+                  >
+                    <span v-if="cell.number" class="cell-number">{{ cell.number }}</span>
+                    <input
+                      v-if="!cell.blocked"
+                      :value="userGrid[rowIndex][colIndex]"
+                      type="text"
+                      maxlength="1"
+                      class="cell-input"
+                      :data-row="rowIndex"
+                      :data-col="colIndex"
+                      autocomplete="off"
+                      autocapitalize="characters"
+                      spellcheck="false"
+                      @input="onCellInput(rowIndex, colIndex, $event)"
+                      @keydown="onCellKeydown($event, rowIndex, colIndex)"
+                    >
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="clues">
+            <div class="clues-block">
+              <h3>По горизонтали</h3>
+              <ol v-if="crossword.across_clues.length">
+                <li v-for="clue in crossword.across_clues" :key="'a-' + clue.number">
+                  <strong>{{ clue.number }}.</strong> {{ clue.clue }}
+                </li>
+              </ol>
+              <p v-else class="empty-clues">Нет слов</p>
+            </div>
+
+            <div class="clues-block">
+              <h3>По вертикали</h3>
+              <ol v-if="crossword.down_clues.length">
+                <li v-for="clue in crossword.down_clues" :key="'d-' + clue.number">
+                  <strong>{{ clue.number }}.</strong> {{ clue.clue }}
+                </li>
+              </ol>
+              <p v-else class="empty-clues">Нет слов</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section v-else-if="isSharedView && loading" class="panel placeholder-panel">
+        <div class="placeholder">
+          <p>Загрузка кроссворда...</p>
+        </div>
+      </section>
+
+      <section v-else-if="isSharedView && error" class="panel placeholder-panel">
+        <p class="message message-error">{{ error }}</p>
+        <a href="/" class="home-link home-link-block">Создать свой кроссворд</a>
+      </section>
+
+      <section v-else-if="!isSharedView && !loading && !error" class="panel placeholder-panel">
+        <div class="placeholder">
+          <div class="placeholder-icon">#</div>
+          <p>Заполните форму и нажмите «Сгенерировать кроссворд»</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>Django + Vue · Автогенерация кроссвордов</p>
+      </div>
+    </footer>
+  </div>
+  {% endverbatim %}
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
