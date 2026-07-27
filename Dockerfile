@@ -22,12 +22,13 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin
 
 WORKDIR /app
 
+RUN mkdir -p /app/static /app/staticfiles && \
+    chown -R appuser:appuser /app/static /app/staticfiles
+
 COPY --chown=appuser:appuser . .
 
 ENV PYTHONDONTWRITEBITECODE=1
 ENV PYTHONUNBUFFERED=1
-
-USER appuser
 
 EXPOSE 8000
 
