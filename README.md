@@ -1,146 +1,122 @@
-# Генератор кроссвордов
+# Crossword Generator
 
-Веб-приложение для автоматической генерации кроссвордов по списку слов и описаний.
+A full-stack web application for generating interactive crossword puzzles from user-provided words and clues. The project combines a Django backend with a Vue 3 frontend to deliver a responsive experience for creating, solving, and sharing crosswords.
 
-**Стек:** Django, Vue 3, HTML, CSS, JavaScript
+## Project Overview
 
-## Запуск
+This application allows users to:
+
+- Enter multiple words and clue descriptions
+- Generate a crossword grid automatically
+- View numbered across and down clues
+- Solve the puzzle directly in the browser
+- Save and share generated crosswords through a unique public link
+
+It was built as a practical portfolio project to demonstrate end-to-end web development skills, including backend logic, frontend interaction, API design, data persistence, and deployment preparation.
+
+## Tech Stack
+
+- Python 3.13 with Django
+- Vue 3
+- HTML, CSS, and JavaScript
+- SQLite for local development
+- Docker Compose and Nginx for containerized deployment
+
+## Main Features
+
+- Automatic crossword generation based on a set of words and clues
+- Validation for input quality and crossword feasibility
+- Interactive solving interface with letter-by-letter input
+- Shareable puzzle URLs for public access
+- REST-style API endpoints for generation and retrieval
+
+## Project Structure
+
+```text
+crossword/
+├── crossword_project/   # Django project settings and URL routing
+├── generator/           # crossword generation logic, views, and API endpoints
+├── templates/           # frontend HTML templates
+├── static/              # CSS and JavaScript assets
+├── manage.py            # Django management entry point
+└── docker-compose.yml   # containerized deployment configuration
+```
+
+## Local Development
+
+### 1. Create environment variables
+
+Copy the example environment file and adjust values if needed:
+
+```bash
+copy .env.example .env
+```
+
+### 2. Install dependencies
 
 ```bash
 pip install -r requirements.txt
+```
+
+### 3. Apply database migrations
+
+```bash
 python manage.py migrate
+```
+
+### 4. Run the development server
+
+```bash
 python manage.py runserver
 ```
 
-Откройте в браузере: http://127.0.0.1:8000/
+Open the application at:
 
-## Как пользоваться
-
-1. Введите слова и описания (вопросы) в форму.
-2. Нажмите «Сгенерировать кроссворд».
-3. Слева появится сетка, справа — списки определений «По горизонтали» и «Пo вертикали».
-
-Кнопка «Пример» загружает набор русских слов для быстрой проверки.
-
-После генерации появится **ссылка на кроссворд** — её можно скопировать и отправить другому человеку. По адресу вида `/c/<uuid>/` откроется сохранённый кроссворд с теми же словами и сеткой.
-
-## Структура проекта
-
-```
-crossword/
-├── crossword_project/   # настройки Django
-├── generator/
-│   ├── crossword.py     # алгоритм генерации сетки
-│   ├── views.py         # API и главная страница
-│   └── urls.py
-├── templates/
-│   └── index.html       # Vue-приложение
-├── static/
-│   ├── css/style.css
-│   └── js/app.js
-└── manage.py
+```text
+http://127.0.0.1:8000/
 ```
 
 ## API
 
-`POST /api/generate/`
+### Generate a crossword
+
+Endpoint:
+
+```text
+POST /api/generate/
+```
+
+Example payload:
 
 ```json
 {
   "words": [
-    {"word": "PYTHON", "clue": "Язык программирования"},
-    {"word": "HTML", "clue": "Язык разметки"}
+    {"word": "PYTHON", "clue": "Programming language"},
+    {"word": "DJANGO", "clue": "Python web framework"}
   ]
 }
 ```
 
-Ответ содержит сетку (`grid`), списки подсказок (`across_clues`, `down_clues`), статистику размещения, а также `id` и `share_url`.
+The response includes the generated crossword grid, clue lists, placement statistics, and a shareable puzzle identifier.
 
-`GET /api/crossword/<uuid>/` — получить сохранённый кроссворд по ссылке.
+### Retrieve a saved crossword
 
-`GET /c/<uuid>/` — страница с кроссвордом для sharing.
-
-## Деплой на VPS (Linux)
-
-### 1. Что поменять перед выкладкой
-
-Скопируйте `.env.example` в `.env` и задайте значения:
-
-| Переменная | Что указать |
-|---|---|
-| `DJANGO_SECRET_KEY` | Случайная строка (сгенерировать командой ниже) |
-| `DJANGO_DEBUG` | `False` |
-| `DJANGO_ALLOWED_HOSTS` | `crossword.yehor-inq.com` |
-| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://crossword.yehor-inq.com` |
-
-Сгенерировать секретный ключ:
-
-```bash
-python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```text
+GET /api/crossword/<uuid>/
 ```
 
-Домен настраивается **только в `.env`** — в коде менять ничего не нужно. Ссылки для sharing (`share_url`) формируются автоматически из домена запроса.
-
-### 2. Установка на сервере
-
-```bash
-# Клонировать/скопировать проект на сервер
-cd /var/www/crossword
-
-python3 -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
-
-pip install -r requirements.txt
-cp .env.example .env              # отредактировать .env
-python manage.py migrate
-python manage.py collectstatic --noinput
+```text
+GET /c/<uuid>/
 ```
 
-### 3. Запуск (Gunicorn)
+## Deployment
+
+The project is prepared for containerized deployment using Docker and Nginx. A production-style setup is defined in the repository configuration files.
 
 ```bash
-source venv/bin/activate
-gunicorn crossword_project.wsgi:application --bind 0.0.0.0:8000 --workers 2
+docker compose up --build
 ```
 
-Или с портом из `.env`:
+## Resume Summary
 
-```bash
-gunicorn crossword_project.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2
-```
-
-Проверка: откройте `http://IP_СЕРВЕРА:8000`.
-
-### 4. Nginx + HTTPS (рекомендуется)
-
-Готовый конфиг: `deploy/nginx.conf` (домен `crossword.yehor-inq.com`):
-
-```bash
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/crossword
-sudo ln -s /etc/nginx/sites-available/crossword /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-SSL через Certbot:
-
-```bash
-sudo certbot --nginx -d crossword.yehor-inq.com
-```
-
-### 5. Автозапуск через systemd
-
-Готовый unit-файл: `deploy/crossword.service`
-
-```bash
-sudo cp deploy/crossword.service /etc/systemd/system/crossword.service
-```
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable crossword
-sudo systemctl start crossword
-```
-
-### Локальная разработка
-
-Без `.env` проект работает как раньше (`DEBUG=True`, localhost). Для локального теста production-режима создайте `.env` с `DJANGO_DEBUG=False` и своим доменом.
+This project demonstrates practical experience in building a full-stack web application from concept to deployment, with a focus on Django backend development, interactive frontend behavior, API integration, and production-ready containerization.
