@@ -27,16 +27,16 @@ def shared_crossword(request, crossword_id):
 
 def _validate_entries(entries):
     if not entries:
-        return 'Добавьте хотя бы одно слово'
+        return 'Add at least one word'
     if len(entries) < 2:
-        return 'Для генерации кроссворда нужно минимум 2 слова'
+        return 'At least 2 words are required to generate a crossword'
     for entry in entries:
         word = str(entry.get('word', '')).strip()
         clue = str(entry.get('clue', '')).strip()
         if not word or not clue:
-            return 'Каждое слово должно иметь текст и описание'
+            return 'Every word must have both text and a clue'
         if not word.replace(' ', '').isalpha():
-            return f'Слово «{word}» должно содержать только буквы'
+            return f'The word "{word}" must contain letters only'
     return None
 
 
@@ -46,7 +46,7 @@ def generate(request):
     try:
         payload = json.loads(request.body)
     except json.JSONDecodeError:
-        return JsonResponse({'error': 'Некорректный JSON'}, status=400)
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
     entries = payload.get('words', [])
     validation_error = _validate_entries(entries)
@@ -58,8 +58,8 @@ def generate(request):
         return JsonResponse(
             {
                 'error': (
-                    'Не удалось составить кроссворд из этих слов. '
-                    'Попробуйте добавить слова с общими буквами.'
+                    'Could not build a crossword from these words. '
+                    'Try adding words that share common letters.'
                 )
             },
             status=422,
