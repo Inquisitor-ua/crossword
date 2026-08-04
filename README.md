@@ -114,8 +114,15 @@ GET /c/<uuid>/
 The project is prepared for containerized deployment using Docker and Nginx. A production-style setup is defined in the repository configuration files.
 
 ```bash
-docker compose up --build
+docker network create edge   # once per server, shared with ../splitbot too
+docker compose up -d --build
 ```
+
+This stack publishes no ports to the host — it's only reachable through the
+shared `edge` Docker network, from the main reverse proxy in
+`../nginx-proxy/`, which terminates TLS (Cloudflare Origin CA certificate)
+and routes `crossword.yehor-inq.com` to this project's own nginx container.
+See `../nginx-proxy/README.md` for the full server setup.
 
 ## Resume Summary
 

@@ -1,11 +1,7 @@
-version: '3.8'
-
 services:
   web:
     build: .
     container_name: crossword-app
-    ports:
-      - "8000:8000"
     volumes:
       - staticfiles:/app/staticfiles
     restart: unless-stopped
@@ -14,14 +10,20 @@ services:
 
   nginx:
     image: nginx:alpine
-    ports:
-      - "80:80"
+    container_name: crossword-nginx
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - staticfiles:/staticfiles:ro
     depends_on:
       - web
     restart: unless-stopped
+    networks:
+      - default
+      - edge
+
+networks:
+  edge:
+    external: true
 
 volumes:
   staticfiles:
